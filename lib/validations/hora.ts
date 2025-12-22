@@ -1,12 +1,17 @@
-import {z} from 'zod';
+import { z } from 'zod';
 
-export const HoraSchema = z.object({
-    
-})
+// Schema para iniciar uma nova sessão de trabalho
+export const createHoraSchema = z.object({
+    servicoId: z.string().cuid('ID do serviço inválido'),
+});
 
-export const createHoraSchema = HoraSchema;
-export const updateHoraSchema = HoraSchema.partial();
-export type HoraInput = z.infer<typeof HoraSchema>;
-export type CreateHoraInput = z.infer<typeof createHoraSchema>; 
+// Schema para atualizar status da hora (pausar/finalizar)
+export const updateHoraSchema = z.object({
+    status: z.enum(['PAUSADA', 'FINALIZADA'], {
+        errorMap: () => ({ message: 'Status deve ser PAUSADA ou FINALIZADA' })
+    }),
+});
+
+export type CreateHoraInput = z.infer<typeof createHoraSchema>;
 export type UpdateHoraInput = z.infer<typeof updateHoraSchema>;
 
