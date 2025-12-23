@@ -15,16 +15,39 @@ function getWeekRange(date: Date): { inicio: Date; fim: Date } {
     return { inicio, fim };
 }
 
-// Calcula dados do dashboard semanal
+// Retorna início e fim do mês
+function getMonthRange(date: Date): { inicio: Date; fim: Date } {
+    const inicio = new Date(date.getFullYear(), date.getMonth(), 1);
+    inicio.setHours(0, 0, 0, 0);
+
+    const fim = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    fim.setHours(23, 59, 59, 999);
+
+    return { inicio, fim };
+}
+
+// Calcula dados do dashboard semanal/mensal
 export const GET = withAuth(async (request: NextRequest, userId: string) => {
     try {
         const url = new URL(request.url);
-        const semanaOffset = parseInt(url.searchParams.get('semana') ?? '0');
+        const periodo = url.searchParams.get('periodo') ?? 'semana'; // 'semana' ou 'mes'
+        const offset = parseInt(url.searchParams.get('offset') ?? '0');
 
-        // Calcula a semana baseado no offset (0 = atual, -1 = anterior, etc.)
+        // Calcula o período baseado no offset
         const dataReferencia = new Date();
-        dataReferencia.setDate(dataReferencia.getDate() + (semanaOffset * 7));
-        const { inicio, fim } = getWeekRange(dataReferencia);
+        let inicio: Date, fim: Date;
+
+        if (periodo === 'mes') {
+            dataReferencia.setMonth(dataReferencia.getMonth() + offset);
+            const range = getMonthRange(dataReferencia);
+            inicio = range.inicio;
+            fim = range.fim;
+        } else {
+            dataReferencia.setDate(dataReferencia.getDate() + (offset * 7));
+            const range = getWeekRange(dataReferencia);
+            inicio = range.inicio;
+            fim = range.fim;
+        }
 
         // Busca config do usuário para valor da hora
         const config = await prisma.config.findUnique({
@@ -32,7 +55,7 @@ export const GET = withAuth(async (request: NextRequest, userId: string) => {
         });
         const valorHora = config?.valorHora ?? 0;
 
-        // Busca serviços do usuário com horas da semana
+        // Busca serviços do usuário com horas do período
         const servicos = await prisma.servico.findMany({
             where: { userId },
             include: {
@@ -44,15 +67,35 @@ export const GET = withAuth(async (request: NextRequest, userId: string) => {
             }
         });
 
+        // Busca serviços concluídos no período
+        const servicosConcluidosNoPeriodo = await prisma.servico.findMany({
+            where: {
+                userId,
+                status: 'CONCLUIDO',
+                finalizado_em: { gte: inicio, lte: fim }
+            }
+        });
+
         // Calcula métricas
         let segundosTotais = 0;
         let servicosAtivos = 0;
         let servicosConcluidos = 0;
         let servicosFaturados = 0;
 
-        // Dados por dia da semana
-        const porDia: Record<number, number> = {};
-        for (let i = 0; i < 7; i++) porDia[i] = 0;
+        // Dados por dia da semana (para horas trabalhadas)
+        const horasPorDia: Record<number, number> = {};
+        for (let i = 0; i < 7; i++) horasPorDia[i] = 0;
+
+        // Dados de serviços concluídos por dia
+        const servicosFaturadosPorDia: Record<number, number> = {};
+        const servicosNaoFaturadosPorDia: Record<number, number> = {};
+        for (let i = 0; i < 7; i++) {
+            servicosFaturadosPorDia[i] = 0;
+            servicosNaoFaturadosPorDia[i] = 0;
+        }
+
+        // Dados de serviços concluídos por data (para gráfico de linha)
+        const servicosPorData: Record<string, number> = {};
 
         servicos.forEach(servico => {
             // Contadores de status
@@ -67,23 +110,58 @@ export const GET = withAuth(async (request: NextRequest, userId: string) => {
 
                 // Agrupa por dia da semana
                 const diaSemana = hora.dataInicio.getDay();
-                porDia[diaSemana] += segundos;
+                horasPorDia[diaSemana] += segundos;
             });
+        });
+
+        // Processa serviços concluídos no período
+        servicosConcluidosNoPeriodo.forEach(servico => {
+            if (servico.finalizado_em) {
+                const dataFinal = new Date(servico.finalizado_em);
+                const diaSemana = dataFinal.getDay();
+                const dataStr = dataFinal.toISOString().split('T')[0];
+
+                // Agrupa por dia da semana (faturados vs não faturados)
+                if (servico.faturado) {
+                    servicosFaturadosPorDia[diaSemana]++;
+                } else {
+                    servicosNaoFaturadosPorDia[diaSemana]++;
+                }
+
+                // Agrupa por data (para gráfico de linha)
+                servicosPorData[dataStr] = (servicosPorData[dataStr] ?? 0) + 1;
+            }
         });
 
         // Converte segundos para horas (decimal)
         const horasTrabalhadas = segundosTotais / 3600;
         const lucroEstimado = horasTrabalhadas * valorHora;
 
-        // Formata dados por dia
+        // Formata dados por dia da semana
         const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-        const dadosPorDia = diasSemana.map((nome, index) => ({
+        const dadosHorasPorDia = diasSemana.map((nome, index) => ({
             dia: nome,
-            horas: porDia[index] / 3600
+            horas: Math.round((horasPorDia[index] / 3600) * 100) / 100
         }));
 
+        const dadosFaturadosPorDia = diasSemana.map((nome, index) => ({
+            dia: nome,
+            quantidade: servicosFaturadosPorDia[index]
+        }));
+
+        const dadosNaoFaturadosPorDia = diasSemana.map((nome, index) => ({
+            dia: nome,
+            quantidade: servicosNaoFaturadosPorDia[index]
+        }));
+
+        // Formata dados por data para gráfico de linha
+        const dadosServicosPorData = Object.entries(servicosPorData)
+            .map(([date, total]) => ({ date, total }))
+            .sort((a, b) => a.date.localeCompare(b.date));
+
         return NextResponse.json({
-            semana: {
+            periodo: {
+                tipo: periodo,
                 inicio: inicio.toISOString(),
                 fim: fim.toISOString()
             },
@@ -96,7 +174,12 @@ export const GET = withAuth(async (request: NextRequest, userId: string) => {
                 lucroEstimado: Math.round(lucroEstimado * 100) / 100,
                 valorHora
             },
-            porDia: dadosPorDia
+            graficos: {
+                horasPorDia: dadosHorasPorDia,
+                servicosPorData: dadosServicosPorData,
+                faturadosPorDia: dadosFaturadosPorDia,
+                naoFaturadosPorDia: dadosNaoFaturadosPorDia
+            }
         });
     } catch (error) {
         console.error('Erro ao buscar dashboard:', error);
