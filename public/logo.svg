@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Círculo do relógio (parcial) -->
+  <path d="M50 10 A40 40 0 1 1 15 65" stroke="currentColor" stroke-width="8" stroke-linecap="round" fill="none"/>
+
+  <!-- Ponteiro das horas -->
+  <line x1="50" y1="50" x2="50" y2="28" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Ponteiro dos minutos -->
+  <line x1="50" y1="50" x2="38" y2="42" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Check mark -->
+  <path d="M30 58 L48 76 L85 30" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Quadrados decorativos -->
+  <rect x="72" y="12" width="6" height="6" fill="currentColor" rx="1"/>
+  <rect x="82" y="18" width="5" height="5" fill="currentColor" rx="1"/>
+  <rect x="78" y="28" width="4" height="4" fill="currentColor" rx="1"/>
+</svg>

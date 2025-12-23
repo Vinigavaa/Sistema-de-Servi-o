@@ -1,10 +1,8 @@
-"use server"
+"use server";
 
-import { signIn } from '../../../lib/auth'
+import { signIn } from "@/lib/auth";
 
-export async function handleRegister(provider: string) {
-  await signIn(provider, { redirectTo: "/dashboard" })
+// Inicia o fluxo de autenticação com Google
+export async function loginWithGoogle() {
+    await signIn("google", { redirectTo: "/dashboard" });
 }
-
-//roda no servidor - provider espera o nome do provedor de autenticação (google, github, etc)
-//recebe o nome do provedor -> chama a função signIn -> se sucesso redireciona para o dashboard
