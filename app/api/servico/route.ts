@@ -13,7 +13,7 @@ export const GET = withAuth(async (_request: NextRequest, userId: string) => {
                     select: { segundos: true, status: true }
                 }
             },
-            orderBy: { criado_em: 'desc' }
+            orderBy: { datahora: 'desc' }
         });
 
         // Calcula tempo total de cada serviço
@@ -49,11 +49,20 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
             );
         }
 
+        // Se status for CONCLUIDO, define finalizado_em
+        const finalizado_em = validation.data.status === 'CONCLUIDO'
+            ? new Date()
+            : null;
+
         const servico = await prisma.servico.create({
             data: {
                 userId,
                 nome: validation.data.nome,
                 descricao: validation.data.descricao,
+                datahora: new Date(validation.data.datahora),
+                status: validation.data.status,
+                faturado: validation.data.faturado,
+                finalizado_em,
             }
         });
 

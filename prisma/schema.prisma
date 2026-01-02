@@ -91,6 +91,7 @@ model Servico {
   faturado      Boolean       @default(false)
   status        StatusServico @default(EM_ABERTO)
   criado_em     DateTime      @default(now())
+  datahora      DateTime      @default(now())
   finalizado_em DateTime?
   horas         Hora[]
 

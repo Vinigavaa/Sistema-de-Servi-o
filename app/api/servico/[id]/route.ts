@@ -75,9 +75,16 @@ export const PUT = withAuth(async (
             );
         }
 
+        // Converte datahora string para Date se presente
+        const updateData = {
+            ...validation.data,
+            ...(validation.data.datahora && { datahora: new Date(validation.data.datahora) }),
+            ...(validation.data.finalizado_em && { finalizado_em: new Date(validation.data.finalizado_em) }),
+        };
+
         const servico = await prisma.servico.update({
             where: { id },
-            data: validation.data
+            data: updateData
         });
 
         return NextResponse.json(servico);

@@ -55,26 +55,20 @@ export const GET = withAuth(async (request: NextRequest, userId: string) => {
         });
         const valorHora = config?.valorHora ?? 0;
 
-        // Busca serviços do usuário com horas do período
+        // Busca serviços do usuário no período (usando datahora)
         const servicos = await prisma.servico.findMany({
-            where: { userId },
+            where: {
+                userId,
+                datahora: { gte: inicio, lte: fim }
+            },
             include: {
-                horas: {
-                    where: {
-                        dataInicio: { gte: inicio, lte: fim }
-                    }
-                }
+                horas: true
             }
         });
 
-        // Busca serviços concluídos no período
-        const servicosConcluidosNoPeriodo = await prisma.servico.findMany({
-            where: {
-                userId,
-                status: 'CONCLUIDO',
-                finalizado_em: { gte: inicio, lte: fim }
-            }
-        });
+        // Busca serviços faturados e não faturados no período
+        const servicosFaturadosNoPeriodo = servicos.filter(s => s.faturado);
+        const servicosNaoFaturadosNoPeriodo = servicos.filter(s => !s.faturado);
 
         // Calcula métricas
         let segundosTotais = 0;
@@ -86,7 +80,7 @@ export const GET = withAuth(async (request: NextRequest, userId: string) => {
         const horasPorDia: Record<number, number> = {};
         for (let i = 0; i < 7; i++) horasPorDia[i] = 0;
 
-        // Dados de serviços concluídos por dia
+        // Dados de serviços por dia (usando datahora)
         const servicosFaturadosPorDia: Record<number, number> = {};
         const servicosNaoFaturadosPorDia: Record<number, number> = {};
         for (let i = 0; i < 7; i++) {
@@ -94,7 +88,7 @@ export const GET = withAuth(async (request: NextRequest, userId: string) => {
             servicosNaoFaturadosPorDia[i] = 0;
         }
 
-        // Dados de serviços concluídos por data (para gráfico de linha)
+        // Dados de serviços por data (para gráfico de linha)
         const servicosPorData: Record<string, number> = {};
 
         servicos.forEach(servico => {
@@ -108,29 +102,23 @@ export const GET = withAuth(async (request: NextRequest, userId: string) => {
                 const segundos = hora.segundos ?? 0;
                 segundosTotais += segundos;
 
-                // Agrupa por dia da semana
-                const diaSemana = hora.dataInicio.getDay();
+                // Agrupa por dia da semana baseado na datahora do serviço
+                const diaSemana = servico.datahora.getDay();
                 horasPorDia[diaSemana] += segundos;
             });
-        });
 
-        // Processa serviços concluídos no período
-        servicosConcluidosNoPeriodo.forEach(servico => {
-            if (servico.finalizado_em) {
-                const dataFinal = new Date(servico.finalizado_em);
-                const diaSemana = dataFinal.getDay();
-                const dataStr = dataFinal.toISOString().split('T')[0];
+            // Agrupa serviços por dia da semana (usando datahora)
+            const diaSemana = servico.datahora.getDay();
+            const dataStr = servico.datahora.toISOString().split('T')[0];
 
-                // Agrupa por dia da semana (faturados vs não faturados)
-                if (servico.faturado) {
-                    servicosFaturadosPorDia[diaSemana]++;
-                } else {
-                    servicosNaoFaturadosPorDia[diaSemana]++;
-                }
-
-                // Agrupa por data (para gráfico de linha)
-                servicosPorData[dataStr] = (servicosPorData[dataStr] ?? 0) + 1;
+            if (servico.faturado) {
+                servicosFaturadosPorDia[diaSemana]++;
+            } else {
+                servicosNaoFaturadosPorDia[diaSemana]++;
             }
+
+            // Agrupa por data (para gráfico de linha)
+            servicosPorData[dataStr] = (servicosPorData[dataStr] ?? 0) + 1;
         });
 
         // Converte segundos para horas (decimal)

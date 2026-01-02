@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "servicos" ADD COLUMN     "datahora" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
