@@ -2,178 +2,99 @@ import { withAuth } from "@/lib/auth-helper";
 import prisma from "@/lib/prisma";
 import { NextResponse, NextRequest } from "next/server";
 
-// Retorna início e fim da semana (domingo a sábado)
-function getWeekRange(date: Date): { inicio: Date; fim: Date } {
-    const inicio = new Date(date);
-    inicio.setDate(date.getDate() - date.getDay());
-    inicio.setHours(0, 0, 0, 0);
+const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-    const fim = new Date(inicio);
-    fim.setDate(inicio.getDate() + 6);
-    fim.setHours(23, 59, 59, 999);
-
-    return { inicio, fim };
-}
-
-// Retorna início e fim do mês
-function getMonthRange(date: Date): { inicio: Date; fim: Date } {
-    const inicio = new Date(date.getFullYear(), date.getMonth(), 1);
-    inicio.setHours(0, 0, 0, 0);
-
-    const fim = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    fim.setHours(23, 59, 59, 999);
-
-    return { inicio, fim };
-}
-
-// Calcula dados do dashboard semanal/mensal
 export const GET = withAuth(async (request: NextRequest, userId: string) => {
     try {
         const url = new URL(request.url);
-        const periodo = url.searchParams.get('periodo') ?? 'semana'; // 'semana' ou 'mes'
         const offset = parseInt(url.searchParams.get('offset') ?? '0');
 
-        // Calcula o período baseado no offset
-        const dataReferencia = new Date();
-        let inicio: Date, fim: Date;
+        const agora = new Date();
+        agora.setMonth(agora.getMonth() + offset);
 
-        if (periodo === 'mes') {
-            dataReferencia.setMonth(dataReferencia.getMonth() + offset);
-            const range = getMonthRange(dataReferencia);
-            inicio = range.inicio;
-            fim = range.fim;
+        // Início do dia (considerando offset mensal, pega primeiro dia do mês)
+        const inicioDia = new Date(agora);
+        if (offset === 0) {
+            inicioDia.setHours(0, 0, 0, 0);
         } else {
-            dataReferencia.setDate(dataReferencia.getDate() + (offset * 7));
-            const range = getWeekRange(dataReferencia);
-            inicio = range.inicio;
-            fim = range.fim;
+            inicioDia.setDate(1);
+            inicioDia.setHours(0, 0, 0, 0);
         }
 
-        // Busca config do usuário para valor da hora
-        const config = await prisma.config.findUnique({
-            where: { userId }
-        });
+        // Início da semana
+        const inicioSemana = new Date(agora);
+        if (offset === 0) {
+            inicioSemana.setDate(agora.getDate() - agora.getDay());
+        } else {
+            inicioSemana.setDate(1);
+        }
+        inicioSemana.setHours(0, 0, 0, 0);
+
+        // Início e fim do mês
+        const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+        const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59, 999);
+
+        // Busca config do usuário
+        const config = await prisma.config.findUnique({ where: { userId } });
         const valorHora = config?.valorHora ?? 0;
 
-        // Busca serviços do usuário no período (usando datahora)
-        const servicos = await prisma.servico.findMany({
+        // Busca serviços do mês
+        const servicosMes = await prisma.servico.findMany({
             where: {
                 userId,
-                datahora: { gte: inicio, lte: fim }
+                datahora: { gte: inicioMes, lte: fimMes }
             },
-            include: {
-                horas: true
-            }
+            include: { horas: { select: { segundos: true } } }
         });
 
-        // Busca serviços faturados e não faturados no período
-        const servicosFaturadosNoPeriodo = servicos.filter(s => s.faturado);
-        const servicosNaoFaturadosNoPeriodo = servicos.filter(s => !s.faturado);
+        // Função para calcular métricas
+        const calcular = (servicos: typeof servicosMes) => {
+            const concluidos = servicos.filter(s => s.status === 'CONCLUIDO');
+            const segundos = concluidos.reduce((acc, s) =>
+                acc + s.horas.reduce((h, hora) => h + (hora.segundos ?? 0), 0), 0);
+            const horas = segundos / 3600;
+            return {
+                total: concluidos.length,
+                horas: Math.round(horas * 100) / 100,
+                valor: Math.round(horas * valorHora * 100) / 100
+            };
+        };
 
-        // Calcula métricas
-        let segundosTotais = 0;
-        let servicosAtivos = 0;
-        let servicosConcluidos = 0;
-        let servicosFaturados = 0;
+        // Dados por período
+        const servicosConcluidos = servicosMes.filter(s => s.status === 'CONCLUIDO');
+        const servicosDia = offset === 0
+            ? servicosConcluidos.filter(s => s.datahora >= inicioDia)
+            : [];
+        const servicosSemana = offset === 0
+            ? servicosConcluidos.filter(s => s.datahora >= inicioSemana)
+            : [];
 
-        // Dados por dia da semana (para horas trabalhadas)
-        const horasPorDia: Record<number, number> = {};
-        for (let i = 0; i < 7; i++) horasPorDia[i] = 0;
+        // Gráficos por dia da semana
+        const faturadosPorDia = DIAS_SEMANA.map(() => 0);
+        const naoFaturadosPorDia = DIAS_SEMANA.map(() => 0);
 
-        // Dados de serviços por dia (usando datahora)
-        const servicosFaturadosPorDia: Record<number, number> = {};
-        const servicosNaoFaturadosPorDia: Record<number, number> = {};
-        for (let i = 0; i < 7; i++) {
-            servicosFaturadosPorDia[i] = 0;
-            servicosNaoFaturadosPorDia[i] = 0;
-        }
-
-        // Dados de serviços por data (para gráfico de linha)
-        const servicosPorData: Record<string, number> = {};
-
-        servicos.forEach(servico => {
-            // Contadores de status
-            if (servico.status === 'CONCLUIDO') servicosConcluidos++;
-            if (servico.status === 'FAZENDO') servicosAtivos++;
-            if (servico.faturado) servicosFaturados++;
-
-            // Soma segundos das horas
-            servico.horas.forEach(hora => {
-                const segundos = hora.segundos ?? 0;
-                segundosTotais += segundos;
-
-                // Agrupa por dia da semana baseado na datahora do serviço
-                const diaSemana = servico.datahora.getDay();
-                horasPorDia[diaSemana] += segundos;
-            });
-
-            // Agrupa serviços por dia da semana (usando datahora)
-            const diaSemana = servico.datahora.getDay();
-            const dataStr = servico.datahora.toISOString().split('T')[0];
-
-            if (servico.faturado) {
-                servicosFaturadosPorDia[diaSemana]++;
-            } else {
-                servicosNaoFaturadosPorDia[diaSemana]++;
-            }
-
-            // Agrupa por data (para gráfico de linha)
-            servicosPorData[dataStr] = (servicosPorData[dataStr] ?? 0) + 1;
+        servicosConcluidos.forEach(s => {
+            const dia = s.datahora.getDay();
+            if (s.faturado) faturadosPorDia[dia]++;
+            else naoFaturadosPorDia[dia]++;
         });
-
-        // Converte segundos para horas (decimal)
-        const horasTrabalhadas = segundosTotais / 3600;
-        const lucroEstimado = horasTrabalhadas * valorHora;
-
-        // Formata dados por dia da semana
-        const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-        const dadosHorasPorDia = diasSemana.map((nome, index) => ({
-            dia: nome,
-            horas: Math.round((horasPorDia[index] / 3600) * 100) / 100
-        }));
-
-        const dadosFaturadosPorDia = diasSemana.map((nome, index) => ({
-            dia: nome,
-            quantidade: servicosFaturadosPorDia[index]
-        }));
-
-        const dadosNaoFaturadosPorDia = diasSemana.map((nome, index) => ({
-            dia: nome,
-            quantidade: servicosNaoFaturadosPorDia[index]
-        }));
-
-        // Formata dados por data para gráfico de linha
-        const dadosServicosPorData = Object.entries(servicosPorData)
-            .map(([date, total]) => ({ date, total }))
-            .sort((a, b) => a.date.localeCompare(b.date));
 
         return NextResponse.json({
+            valorHora,
             periodo: {
-                tipo: periodo,
-                inicio: inicio.toISOString(),
-                fim: fim.toISOString()
+                mes: agora.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+                offset
             },
-            resumo: {
-                horasTrabalhadas: Math.round(horasTrabalhadas * 100) / 100,
-                segundosTotais,
-                servicosAtivos,
-                servicosConcluidos,
-                servicosFaturados,
-                lucroEstimado: Math.round(lucroEstimado * 100) / 100,
-                valorHora
-            },
+            dia: calcular(servicosDia),
+            semana: calcular(servicosSemana),
+            mes: calcular(servicosMes),
             graficos: {
-                horasPorDia: dadosHorasPorDia,
-                servicosPorData: dadosServicosPorData,
-                faturadosPorDia: dadosFaturadosPorDia,
-                naoFaturadosPorDia: dadosNaoFaturadosPorDia
+                faturados: DIAS_SEMANA.map((dia, i) => ({ dia, quantidade: faturadosPorDia[i] })),
+                naoFaturados: DIAS_SEMANA.map((dia, i) => ({ dia, quantidade: naoFaturadosPorDia[i] }))
             }
         });
     } catch (error) {
         console.error('Erro ao buscar dashboard:', error);
-        return NextResponse.json(
-            { error: 'Erro ao buscar dados do dashboard.' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Erro ao buscar dados.' }, { status: 500 });
     }
 });
