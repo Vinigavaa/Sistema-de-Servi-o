@@ -53,10 +53,17 @@ export const GET = withAuth(async (request: NextRequest, userId: string) => {
             const segundos = concluidos.reduce((acc, s) =>
                 acc + s.horas.reduce((h, hora) => h + (hora.segundos ?? 0), 0), 0);
             const horas = segundos / 3600;
+
+            // Calcula valor apenas dos serviços faturados
+            const faturados = concluidos.filter(s => s.faturado);
+            const segundosFaturados = faturados.reduce((acc, s) =>
+                acc + s.horas.reduce((h, hora) => h + (hora.segundos ?? 0), 0), 0);
+            const horasFaturadas = segundosFaturados / 3600;
+
             return {
                 total: concluidos.length,
                 horas: Math.round(horas * 100) / 100,
-                valor: Math.round(horas * valorHora * 100) / 100
+                valor: Math.round(horasFaturadas * valorHora * 100) / 100
             };
         };
 
