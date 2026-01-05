@@ -82,6 +82,8 @@ export function HoraForm({ onSuccess }: HoraFormProps) {
 
     const valorAtual = form.watch("valorHora")
 
+    //<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"> 
+    //executa ao enviar o form valida os dados com handle-submit se der tudo certo ai sim chama o onSubmit
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">

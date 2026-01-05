@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, forwardRef, useImperativeHandle } from "react"
 import { ServicoCard } from "./servico-card"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -8,19 +8,25 @@ interface Servico {
     id: string
     nome: string
     descricao: string
+    datahora: string
     status: string
     faturado: boolean
     tempoTotal: number
     criado_em: string
 }
 
-export function ServicoList() {
+export interface ServicoListRef {
+    refresh: () => void
+}
+
+export const ServicoList = forwardRef<ServicoListRef>(function ServicoList(_props, ref) {
     const [servicos, setServicos] = useState<Servico[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
     async function fetchServicos() {
         try {
+            setLoading(true)
             const response = await fetch("/api/servico")
             if (!response.ok) throw new Error("Erro ao carregar serviços")
             const data = await response.json()
@@ -31,6 +37,10 @@ export function ServicoList() {
             setLoading(false)
         }
     }
+
+    useImperativeHandle(ref, () => ({
+        refresh: fetchServicos,
+    }))
 
     useEffect(() => {
         fetchServicos()
@@ -77,4 +87,4 @@ export function ServicoList() {
             ))}
         </div>
     )
-}
+})
