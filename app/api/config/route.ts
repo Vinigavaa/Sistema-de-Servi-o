@@ -3,14 +3,13 @@ import prisma from "@/lib/prisma";
 import { updateConfigSchema } from "@/lib/validations/config";
 import { NextResponse, NextRequest } from "next/server";
 
-// Busca a configuração do usuário (cria uma padrão se não existir)
 export const GET = withAuth(async (_request: NextRequest, userId: string) => {
     try {
+        //config é o nome da tabela no banco de dados
         let config = await prisma.config.findUnique({
             where: { userId }
         });
 
-        // Se não existir, cria config padrão com valorHora = 0
         if (!config) {
             config = await prisma.config.create({
                 data: {
@@ -43,7 +42,6 @@ export const PUT = withAuth(async (request: NextRequest, userId: string) => {
             );
         }
 
-        // Upsert: cria se não existir, atualiza se existir
         const config = await prisma.config.upsert({
             where: { userId },
             update: { valorHora: validation.data.valorHora },

@@ -1,36 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Caminhos da aplicação.
 
-## Getting Started
+Na pasta protected e public temos as telas inicias e telas funcionais do software onde irão aparecer ao usuário primeiramente.
 
-First, run the development server:
+# ConfigHora
+tela resposavel pela configuração do valor da hora é criada com um "export default function" comum com retorno em html e tailwind e na formação dos components principais como card, usamos prontos do shadcn. e nele é implementada a regra do formulario de envio dos dados. " <HoraForm /> "
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# HoraForm
+temos uma interface <HoraFormProps> que serve para tipar os props que o component horaform pode receber. No caso desse componente existe uma prop opcional que na verdade é uma função que retornada nada (void) apenas para dizer ao "pai" que algo deu certo ou não.
+
+---
+
+# Barra de Pesquisa de Serviços
+
+## Localização
+`components/servicos/servico-list.tsx`
+
+## Como Funciona
+
+A barra de pesquisa filtra os serviços **pelo nome** em tempo real, sem fazer novas requisições à API.
+
+### Fluxo de Funcionamento
+
+```
+1. Usuário digita no input
+         ↓
+2. onChange dispara → setBusca(valor)
+         ↓
+3. Estado "busca" atualiza
+         ↓
+4. React re-renderiza o componente
+         ↓
+5. servicosFiltrados recalcula com .filter()
+         ↓
+6. Apenas serviços que contêm o texto aparecem
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Código Principal
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```tsx
+// Estado que armazena o texto digitado
+const [busca, setBusca] = useState("")
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+// Filtra os serviços comparando o nome (case-insensitive)
+const servicosFiltrados = servicos.filter(servico =>
+    servico.nome.toLowerCase().includes(busca.toLowerCase())
+)
+```
 
-## Learn More
+### Por que toLowerCase()?
 
-To learn more about Next.js, take a look at the following resources:
+Para a busca não diferenciar maiúsculas de minúsculas:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```javascript
+// SEM toLowerCase:
+"API".includes("api")  // false - não encontra
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+// COM toLowerCase:
+"API".toLowerCase().includes("api".toLowerCase())
+"api".includes("api")  // true - encontra!
+```
 
-## Deploy on Vercel
+## Por que Filtrar no Frontend?
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Esta é a **melhor abordagem** para este caso porque:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Vantagem | Explicação |
+|----------|------------|
+| **Resposta instantânea** | Não precisa esperar requisição HTTP |
+| **Sem carga no servidor** | API não é chamada a cada tecla digitada |
+| **Dados já carregados** | Os serviços já estão em memória |
+| **Simplicidade** | Apenas 3 linhas de código |
+| **UX superior** | Feedback imediato ao usuário |
+
+### Quando usar filtro no Backend?
+
+- Quando há **milhares de registros** (paginação)
+- Quando os dados **não cabem na memória**
+- Quando precisa de **busca avançada** (fuzzy search, relevância)
+
+No nosso caso, um usuário típico terá dezenas ou centenas de serviços, então filtrar no frontend é ideal.
+
+## Componentes Utilizados
+
+- `Input` - componente de input do Shadcn UI
+- `Search` - ícone de lupa do Lucide React
+
+## Exemplo Visual
+
+```
+┌─────────────────────────────────────────┐
+│  🔍 [ Buscar serviço pelo nome...    ]  │  ← Input de busca
+└─────────────────────────────────────────┘
+                    │
+                    ▼
+         servicosFiltrados.map()
+                    │
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+    ┌───────┐   ┌───────┐   ┌───────┐
+    │ Card  │   │ Card  │   │ Card  │     ← Apenas cards filtrados
+    └───────┘   └───────┘   └───────┘
+```

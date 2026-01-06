@@ -8,15 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { ConfigSchema, ConfigInput } from "@/lib/validations/config"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-    FormDescription,
-} from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription, } from "@/components/ui/form"
 
 interface HoraFormProps {
     onSuccess?: () => void
