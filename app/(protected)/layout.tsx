@@ -1,11 +1,18 @@
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
   import { AppSidebar } from "@/components/ui/app-sidebar"
+import { auth } from "@/lib/auth"
+import { redirect } from "next/navigation"
 
-  export default function ProtectedLayout({
+  export default async function ProtectedLayout({
     children,
   }: {
     children: React.ReactNode
   }) {
+    const session = await auth();
+
+    if (!session) {
+      redirect('/')
+    }
     return (
       <SidebarProvider>
         <AppSidebar />
