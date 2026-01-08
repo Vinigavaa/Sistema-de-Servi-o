@@ -1,3 +1,4 @@
+import { sql } from '@codemirror/lang-sql';
 import { z } from 'zod';
 
 export const statusServico = z.enum(['EM_ABERTO', 'FAZENDO', 'TESTANDO', 'CONCLUIDO']);
@@ -11,6 +12,7 @@ export const ServicoSchema = z.object({
     datahora: z.string().datetime({ message: 'Data/hora inválida' }),
     status: statusServico.default('EM_ABERTO'),
     faturado: z.boolean().default(false),
+    sql: z.string().optional(),
 });
 
 export const createServicoSchema = ServicoSchema;
@@ -18,6 +20,7 @@ export const createServicoSchema = ServicoSchema;
 // Update permite campos parciais
 export const updateServicoSchema = ServicoSchema.partial().extend({
     finalizado_em: z.string().datetime().nullable().optional(),
+    sql: z.string().optional(),
 });
 
 // Schema para lançar horas manualmente
