@@ -1,7 +1,14 @@
 import SqlEditor from "@/components/ui/sql-editor";
+import { use } from "react";
 
-export default function SqlViewerPage() {
+type PageProps = {
+    params: Promise<{ id: string }>;
+};
+
+export default function SqlViewerPage({ params }: PageProps) {
+    const { id } = use(params);
+
     return (
-        <SqlEditor/>
-    )
+        <SqlEditor servicoId={id} />
+    );
 }
