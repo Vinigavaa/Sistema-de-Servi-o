@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Pencil, Trash2, Clock, Timer, Calendar } from "lucide-react"
+import { Pencil, Trash2, Clock, Timer, Calendar, FileCodeCorner } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -101,6 +101,14 @@ export function ServicoCard({ servico, onDelete }: ServicoCardProps) {
                             title="Ver horas"
                         >
                             <Timer className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => router.push(`/servicos/${servico.id}/sql-viewer`)}
+                            title="Ver SQL"
+                        >
+                            <FileCodeCorner className="h-4 w-4" />
                         </Button>
                         <Button
                             variant="ghost"
