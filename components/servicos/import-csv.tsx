@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Upload, FileUp, Loader2, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,12 +27,17 @@ interface ImportCsvProps {
 }
 
 export function ImportCsv({ onSuccess }: ImportCsvProps) {
+    const [mounted, setMounted] = useState(false)
     const [isOpen, setIsOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState<ImportResult | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -87,6 +92,15 @@ export function ImportCsv({ onSuccess }: ImportCsvProps) {
         if (fileInputRef.current) {
             fileInputRef.current.value = ''
         }
+    }
+
+    if (!mounted) {
+        return (
+            <Button variant="outline" disabled>
+                <Upload className="h-4 w-4 mr-2" />
+                Importar CSV
+            </Button>
+        )
     }
 
     return (
