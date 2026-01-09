@@ -4,46 +4,36 @@ import { importCsvSchema, CsvItem } from "@/lib/validations/servico";
 import { NextResponse, NextRequest } from "next/server";
 import { StatusServico } from "@/app/generated/prisma/enums";
 
-// Mapeia status do Azure DevOps para status do sistema
 function mapStatus(state: string): StatusServico {
     const stateMap: Record<string, StatusServico> = {
-        // Concluído
         'Done': 'CONCLUIDO',
-        // Em aberto
         'To Do': 'EM_ABERTO',
         'Analized': 'EM_ABERTO',
-        // Fazendo
         'Doing': 'FAZENDO',
         'In Progress': 'FAZENDO',
-        // Testando
         'Testing': 'TESTANDO',
         'Avaliable for test': 'TESTANDO',
     };
     return stateMap[state] ?? 'EM_ABERTO';
 }
 
-// Converte string de data "dd/MM/yyyy HH:mm:ss" para Date
 function parseDate(dateStr: string): Date {
     const [datePart] = dateStr.split(' ');
     const [day, month, year] = datePart.split('/').map(Number);
     return new Date(year, month - 1, day);
 }
 
-// Converte string de horas "HH:mm" para segundos
 function parseTimeToSeconds(time: string): number {
     const [hours, minutes] = time.split(':').map(Number);
     return (hours * 3600) + (minutes * 60);
 }
 
-// Parse do CSV para array de objetos
 function parseCsv(csvContent: string): CsvItem[] {
     const lines = csvContent.split('\n').filter(line => line.trim());
 
-    // Remove BOM se existir e pega o header
     const header = lines[0].replace(/^\uFEFF/, '');
     const headerCols = header.split(',').map(h => h.trim().replace(/"/g, ''));
 
-    // Índices das colunas
     const colIndexes = {
         workItemType: headerCols.indexOf('Work Item Type'),
         id: headerCols.indexOf('ID'),
@@ -60,7 +50,6 @@ function parseCsv(csvContent: string): CsvItem[] {
         const line = lines[i].trim();
         if (!line) continue;
 
-        // Parse considerando valores entre aspas
         const values: string[] = [];
         let current = '';
         let inQuotes = false;
@@ -108,7 +97,6 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
         const csvContent = await file.text();
         const items = parseCsv(csvContent);
 
-        // Valida os itens
         const validation = importCsvSchema.safeParse({ items });
         if (!validation.success) {
             return NextResponse.json(
@@ -117,8 +105,6 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
             );
         }
 
-        // Busca IDs já existentes para evitar duplicação
-        // Usamos o padrão "<ID> - " no início do nome para identificar
         const existingServicos = await prisma.servico.findMany({
             where: { userId },
             select: { nome: true },
@@ -137,7 +123,6 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
         };
 
         for (const item of validation.data.items) {
-            // Verifica duplicação pelo ID do Azure
             if (existingIds.has(item.id)) {
                 results.skipped++;
                 continue;
@@ -148,13 +133,10 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
                 const datahora = parseDate(item.liberadoEm);
                 const segundos = parseTimeToSeconds(item.time);
 
-                // Nome: "<ID> - <Título>"
                 const nome = `${item.id} - ${item.title}`;
 
-                // Descrição: Tipo do Work Item (para exibir no dashboard)
                 const descricao = item.workItemType;
 
-                // Cria o serviço
                 const servico = await prisma.servico.create({
                     data: {
                         userId,
@@ -167,7 +149,6 @@ export const POST = withAuth(async (request: NextRequest, userId: string) => {
                     },
                 });
 
-                // Cria registro de horas se houver tempo
                 if (segundos > 0) {
                     await prisma.hora.create({
                         data: {

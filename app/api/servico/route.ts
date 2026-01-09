@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { createServicoSchema } from "@/lib/validations/servico";
 import { NextResponse, NextRequest } from "next/server";
 
-// Lista todos os serviços do usuário com tempo total calculado
 export const GET = withAuth(async (_request: NextRequest, userId: string) => {
     try {
         const servicos = await prisma.servico.findMany({
@@ -16,7 +15,6 @@ export const GET = withAuth(async (_request: NextRequest, userId: string) => {
             orderBy: { datahora: 'desc' }
         });
 
-        // Calcula tempo total de cada serviço
         const servicosComTempo = servicos.map(servico => {
             const tempoTotal = servico.horas.reduce((acc, hora) => {
                 return acc + (hora.segundos ?? 0);
@@ -36,7 +34,6 @@ export const GET = withAuth(async (_request: NextRequest, userId: string) => {
     }
 });
 
-// Cria um novo serviço
 export const POST = withAuth(async (request: NextRequest, userId: string) => {
     try {
         const body = await request.json();

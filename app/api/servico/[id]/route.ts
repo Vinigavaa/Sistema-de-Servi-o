@@ -5,7 +5,6 @@ import { NextResponse, NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-// Busca um serviço específico com suas horas
 export const GET = withAuth(async (
     _request: NextRequest,
     userId: string,
@@ -30,7 +29,6 @@ export const GET = withAuth(async (
             );
         }
 
-        // Calcula tempo total
         const tempoTotal = servico.horas.reduce((acc, hora) => {
             return acc + (hora.segundos ?? 0);
         }, 0);
@@ -45,7 +43,6 @@ export const GET = withAuth(async (
     }
 });
 
-// Atualiza um serviço (nome, descrição, status, faturado)
 export const PUT = withAuth(async (
     request: NextRequest,
     userId: string,
@@ -63,7 +60,6 @@ export const PUT = withAuth(async (
             );
         }
 
-        // Verifica se o serviço pertence ao usuário
         const existente = await prisma.servico.findFirst({
             where: { id, userId }
         });
@@ -106,7 +102,6 @@ export const DELETE = withAuth(async (
     try {
         const { id } = await params;
 
-        // Verifica se o serviço pertence ao usuário
         const existente = await prisma.servico.findFirst({
             where: { id, userId }
         });
@@ -118,7 +113,6 @@ export const DELETE = withAuth(async (
             );
         }
 
-        // Cascade delete está configurado no schema
         await prisma.servico.delete({ where: { id } });
 
         return NextResponse.json({ message: 'Serviço removido com sucesso.' });
