@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Pencil, Trash2, Clock, Timer, Calendar, FileCodeCorner } from "lucide-react"
+import { Pencil, Trash2, Clock, Timer, Calendar, FileCodeCorner, AlertTriangle, TestTubeDiagonal } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -76,8 +76,17 @@ export function ServicoCard({ servico, onDelete }: ServicoCardProps) {
         }
     }
 
+    const isTestando = servico.status === "TESTANDO"
+
     return (
-        <Card>
+        <Card className="relative">
+            {isTestando && (
+                <div className="absolute -top-2 -right-2 z-10">
+                    <div className="rounded-full p-1" style={{ backgroundColor: "#eab308" }}>
+                        <TestTubeDiagonal className="h-4 w-4 text-white" />
+                    </div>
+                </div>
+            )}
             <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1 flex-1">
