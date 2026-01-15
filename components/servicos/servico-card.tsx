@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Pencil, Trash2, Clock, Timer, Calendar, FileCodeCorner, AlertTriangle, TestTubeDiagonal } from "lucide-react"
+import { Pencil, Trash2, Clock, Timer, Calendar, FileCodeCorner, AlertTriangle, TestTubeDiagonal, Hourglass } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -77,6 +77,7 @@ export function ServicoCard({ servico, onDelete }: ServicoCardProps) {
     }
 
     const isTestando = servico.status === "TESTANDO"
+    const isFazendo = ["FAZENDO", "EM_ABERTO"].includes(servico.status)
 
     return (
         <Card className="relative">
@@ -84,6 +85,13 @@ export function ServicoCard({ servico, onDelete }: ServicoCardProps) {
                 <div className="absolute -top-2 -right-2 z-10">
                     <div className="rounded-full p-1" style={{ backgroundColor: "#eab308" }}>
                         <TestTubeDiagonal className="h-4 w-4 text-white" />
+                    </div>
+                </div>
+            )}
+            {isFazendo && (
+                <div className="absolute -top-2 -right-2 z-10">
+                    <div className="rounded-full p-1" style={{ backgroundColor: "#3c5cff" }}>
+                        <Hourglass className="h-4 w-4 text-white" />
                     </div>
                 </div>
             )}
